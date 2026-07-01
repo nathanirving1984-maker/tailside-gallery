@@ -494,25 +494,26 @@
   const firebaseConfig = {
     apiKey: "AIzaSyBH8AfiMTmVZFLMDRH2UytjrRA-3kVFKsA",
     authDomain: "jackie-s-photography-gallery.firebaseapp.com",
+    databaseURL: "https://jackie-s-photography-gallery-default-rtdb.firebaseio.com",
     projectId: "jackie-s-photography-gallery",
     storageBucket: "jackie-s-photography-gallery.firebasestorage.app",
     messagingSenderId: "497168639017",
     appId: "1:497168639017:web:71ac99e149d731b155a838"
   };
 
-  let fsGetDoc, fsSetDoc, photosDocRef;
+  let rtdbGet, rtdbSet, photosRef;
   let firebaseReady = false;
   let firebaseError = null;
 
   async function initFirebase(){
     try{
       const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js");
-      const { getFirestore, doc, getDoc, setDoc } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
+      const { getDatabase, ref, get, set } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js");
       const firebaseApp = initializeApp(firebaseConfig);
-      const db = getFirestore(firebaseApp);
-      photosDocRef = doc(db, "gallery", "photos");
-      fsGetDoc = getDoc;
-      fsSetDoc = setDoc;
+      const db = getDatabase(firebaseApp);
+      photosRef = ref(db, "galleryPhotos");
+      rtdbGet = get;
+      rtdbSet = set;
       firebaseReady = true;
     }catch(e){
       console.error('Firebase failed to load:', e);
@@ -591,14 +592,14 @@
     if(!firebaseReady) await initFirebase();
     try{
       if(!firebaseReady) throw new Error(firebaseError || 'Firebase not ready');
-      const snap = await fsGetDoc(photosDocRef);
-      if(snap.exists() && Array.isArray(snap.data().items)){
-        photos = snap.data().items;
+      const snap = await rtdbGet(photosRef);
+      if(snap.exists() && Array.isArray(snap.val())){
+        photos = snap.val();
       } else {
         photos = defaultPhotos.slice();
       }
     }catch(e){
-      console.error('Firestore load error:', e);
+      console.error('Realtime Database load error:', e);
       photos = defaultPhotos.slice();
     }
     renderGallery();
@@ -608,7 +609,7 @@
   async function savePhotos(){
     if(!firebaseReady) await initFirebase();
     if(!firebaseReady) throw new Error(firebaseError || 'Firebase not ready');
-    await fsSetDoc(photosDocRef, { items: photos });
+    await rtdbSet(photosRef, photos);
     return true;
   }
 
@@ -634,7 +635,7 @@
     if(!firebaseReady) await initFirebase();
     try{
       if(!firebaseReady) throw new Error(firebaseError || 'Firebase not ready');
-      await fsGetDoc(photosDocRef);
+      await rtdbGet(photosRef);
       el.textContent = 'Storage status: connected to Firebase.';
       el.style.color = 'var(--moss)';
     }catch(e){
